@@ -1,26 +1,16 @@
-rm(list = ls(all.names = TRUE))
-setwd("./CodeAppendix")
-
 # Code Appendix for the CIRCL Study Design Example
 
 # Setup ------------------------------------------------------------------------
 
-# Required packages
+# Clear environment
+rm(list = ls(all.names = TRUE))
 
-# Package names
-packages <- c("tidyverse", "haven", "MASS",
-              "geepack", "lme4", "rootSolve",
-              "devtools", "pracma", "mvtnorm", "nlme",
-              "knitr", "kableExtra")
+# Sets the repository to be the CodeAppendix folder; assumes current
+# directory is the main GitHub repository on your computer
+setwd("./CodeAppendix")
 
-# Install packages not yet installed
-installed_packages <- packages %in% rownames(installed.packages())
-if (any(installed_packages == FALSE)) {
-  install.packages(packages[!installed_packages])
-}
-
-# Packages loading
-invisible(lapply(packages, library, character.only = TRUE))
+# Source file that automatically checks and downloads required packages
+source("./RequiredPackages.R")
 
 # Source code for Method 5: Conjunctive IU test from
 #     https://github.com/siyunyang/coprimary_CRT

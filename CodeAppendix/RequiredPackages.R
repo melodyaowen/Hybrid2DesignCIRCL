@@ -3,7 +3,8 @@
 # Package names
 packages <- c("tidyverse", "MASS", "Matrix", "matrixcalc", "kableExtra",
               "knitr", "pracma", "rootSolve", "tableone", "foreach",
-              "mvtnorm", "tibble", "dplyr", "tidyr")
+              "mvtnorm", "tibble", "dplyr", "tidyr", "haven", "geepack",
+              "lme4", "devtools", "nlme")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
