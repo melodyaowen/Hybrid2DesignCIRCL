@@ -8,7 +8,7 @@ The Chicago Implementation Research Center (CIRCL) is conducting a study to asse
 
 ## Required Input Parameters
 
-_Table of Study Design Input Parameters from CIRCL:_
+_Table 1. Description and Values of Study Design Input Parameters from CIRCL_<sup>2,3</sup>
 | Parameter | Statistical Notation | Variable Name in Code | Description | Value |
 | ---                             | ---              | ---     | --- | --- |
 | Statistical power               | $\pi$            | `power` | Probability of detecting a true effect under $H_A$ | 80% |
