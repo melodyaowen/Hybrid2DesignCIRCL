@@ -29,6 +29,7 @@ _Table 1. Description and Values of Study Design Input Parameters from CIRCL_<su
 All code necessary to run the calculations is available in the /CodeAppendix folder in the main directory. The R scripts are as follows:
 - `CodeAppendix.R`: The main script. This script sources all necessary files and steps through each study design calculation for all five of the methods. Outputs a summary table at the end in order to visualize all the calculations completed.
 - `RequiredPackages.R`: This script contains code that automatically checks for the required R packages to run the calculations. If the package is not installed, this script will install them. If they are installed, it will load the package. This is sourced and ran through the main script, `CodeAppendix.R`, so this script does not need to be opened and ran manually.
+- `HelperFunctions.R`: This script contains helper functions for various sample size and power calculations. This is sourced and ran through the main script, `CodeAppendix.R`, so this script does not need to be opened and ran manually.
 - `powerSampleCal_varCluster_ttest.R`: This script contains code for the conjunctive test<sup>4</sup> written by Siyun Yang, and available (here)[https://github.com/siyunyang/coprimary_CRT]. This is sourced in the main script, and does not need to be opened and ran manually.
 
 ## References
