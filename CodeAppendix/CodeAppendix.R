@@ -16,27 +16,8 @@ source("./RequiredPackages.R")
 #     https://github.com/siyunyang/coprimary_CRT
 source("./powerSampleCal_varCluster_ttest.R")
 
-# Helper Function --------------------------------------------------------------
-calc_ncp_chi2 <- function(alpha, power, df = 1){
-
-  # First compute critical value based on alpha level and DF
-  crit_val <- qchisq(alpha, df = df, lower.tail = FALSE)
-
-  # Start with a small value and increase until it results in sufficient power
-  ncp_start <- 1
-  while(pchisq(crit_val, df = df, lower.tail = FALSE, ncp = ncp_start) < power){
-    ncp_start <- ncp_start + 0.01
-  }
-
-  # Find exact NCP value to return
-  ncp_out <- uniroot(function(ncp)
-    return(pchisq(crit_val, df = df, lower.tail = FALSE, ncp = ncp) - power),
-    c(0, ncp_start))$root
-
-  # Return exact NCP value
-  return(ncp_out)
-} # End calc_ncp_chi2()
-
+# Source helper functions
+source("./HelperFunctions.R")
 
 # Input Parameters -------------------------------------------------------------
 # Creating objects for the input design parameters
@@ -56,10 +37,13 @@ rho1_input  <- 0.01 # Inter-subject between-endpoint ICC
 rho2_input  <- 0.05 # Intra-subject between-endpoint ICC
 varY1_input <- 0.23 # total variance of Y1
 varY2_input <- 0.25 # total variance of Y2
+r_input     <- 1 # treatment ratio
 
 # Find non-centrality parameter that corresponds with inputted power and alpha
+# Based on Chi2 Distribution or F
 ncp         <- calc_ncp_chi2(alpha_input, power_input, df = 1)
 ncp2        <- calc_ncp_chi2(alpha_input, power_input, df = 2) # for 2 DF
+ncpF        <- calc_ncp_F(alpha_input, K_input, power_input)
 
 # Method 1: P-Value Adjustments ------------------------------------------------
 
@@ -205,11 +189,59 @@ find.para.m <- multiroot(power.eq.m, start = 10,
                          positive = TRUE)
 method3_m <- find.para.m$root
 
-# Method 4: Disjunctive 2-DF Test ----------------------------------------------
+# Method 4: Disjunctive 2-DF Test (Chi2 Distribution) --------------------------
 
 # Critical value for method 4, df = 2
-method4_crit <- qchisq(1 - alpha_input, df = 2,
-                       ncp = 0, lower.tail = TRUE, log.p = FALSE)
+method4_crit_chi2 <- qchisq(1 - alpha_input, df = 2,
+                            ncp = 0, lower.tail = TRUE, log.p = FALSE)
+
+# Calculate VIFs
+VIF1 <- 1 + (m_input - 1)*rho01_input
+VIF2 <- 1 + (m_input - 1)*rho02_input
+VIF12 <- rho2_input + (m_input - 1)*rho1_input
+
+# Power for Method 4 Chi2
+method4_lambda <- K_input*m_input*((beta1_input^2)*varY2_input*VIF2 +
+                                     (beta2_input^2)*varY1_input*VIF1 -
+                 2*beta1_input*beta2_input*sqrt(varY1_input)*
+                   sqrt(varY2_input)*VIF12)/(2*varY1_input*
+                                               varY2_input*(VIF1*VIF2-VIF12^2))
+
+method4_power_chi2 <- 1 - pchisq(method4_crit_chi2, df = 2,
+                                 ncp = method4_lambda, lower.tail = TRUE)
+
+# K for Method 4 Chi2
+method4_K_chi2 <- (ncp2*2*varY1_input*varY2_input*(VIF1*VIF2-VIF12^2))/
+  (m_input*((beta1_input^2)*varY2_input*VIF2 +
+                             (beta2_input^2)*varY1_input*VIF1 -
+                             2*beta1_input*beta2_input*sqrt(varY1_input)*
+                             sqrt(varY2_input)*VIF12))
+
+# m for Method 4 Chi2
+# Temporary equation to use multiroot() on to solve for m
+find.para.m <- function(m, para){
+  VIF1 <- 1 + (m - 1)*para[6]
+  VIF2 <- 1 + (m - 1)*para[7]
+  VIF12 <- para[9] + (m - 1)*para[8]
+  lambda <- para[3]*m*(para[1]^2*para[5]*VIF2+para[2]^2*para[4]*VIF1 -
+                         2*para[1]*para[2]*sqrt(para[4]*para[5])*VIF12)/
+    (2*para[4]*para[5]*(VIF1*VIF2 - VIF12^2)) - para[10]
+}
+
+# Finding value
+find.para.m_chi2 <- multiroot(find.para.m, start = 3,
+                              para = c(beta1_input, beta2_input, K_input,
+                                       varY1_input, varY2_input,
+                                       rho01_input, rho02_input,
+                                       rho1_input, rho2_input, ncp2),
+                         positive = TRUE)
+method4_m_chi2 <- find.para.m_chi2$root # Cluster size required
+
+# Method 4: Disjunctive 2-DF Test (F Distribution) -----------------------------
+
+# Value needed for power calculations using F distribution
+Fscore <- qf(1 - alpha_input, df1 = 2, df2 = K_input*2 - 2*2, ncp = 0,
+             lower.tail = TRUE, log.p = FALSE)
 
 # Calculate VIFs
 VIF1 <- 1 + (m_input - 1)*rho01_input
@@ -219,19 +251,37 @@ VIF12 <- rho2_input + (m_input - 1)*rho1_input
 # Power for Method 4
 method4_lambda <- K_input*m_input*((beta1_input^2)*varY2_input*VIF2 +
                                      (beta2_input^2)*varY1_input*VIF1 -
-                 2*beta1_input*beta2_input*sqrt(varY1_input)*
-                   sqrt(varY2_input)*VIF12)/(2*varY1_input*
-                                               varY2_input*(VIF1*VIF2-VIF12^2))
+                                     2*beta1_input*beta2_input*sqrt(varY1_input)*
+                                     sqrt(varY2_input)*VIF12)/(2*varY1_input*
+                                                                 varY2_input*(VIF1*VIF2-VIF12^2))
 
-method4_power <- 1 - pchisq(method4_crit, df = 2,
-                            ncp = method4_lambda, lower.tail = TRUE)
+method4_power_F <- 1 - pf(Fscore, df1 = 2, df2 = K_input*2 - 2*2,
+                          method4_lambda, lower.tail = TRUE, log.p = FALSE)
 
 # K for Method 4
-method4_K <- (ncp2*2*varY1_input*varY2_input*(VIF1*VIF2-VIF12^2))/
-  (m_input*((beta1_input^2)*varY2_input*VIF2 +
-                             (beta2_input^2)*varY1_input*VIF1 -
-                             2*beta1_input*beta2_input*sqrt(varY1_input)*
-                             sqrt(varY2_input)*VIF12))
+# Defining necessary parameters based on input values
+betas <- c(beta1_input, beta2_input) # Beta vector
+r_alt <- 1/(1 + 1)
+Q <- 2 # Number of outcomes, could extend this to more than 2 in the future
+vars <- c(varY1_input, varY2_input) # Vector of variances
+rho01_mat <- matrix(c(rho01_input, rho1_input,
+                      rho1_input, rho02_input), 2, 2)
+rho2_mat <- matrix(c(1, rho2_input, rho2_input, 1), 2, 2)
+clus_var <- 0 # cluster variation, placeholder for future extensions
+pred.power <- 0 # Initializing predictive power
+sigmaz.square <- r_alt*(1-r_alt) # Variance of treatment assignment
+K_total_temp <- 2*Q
+while(pred.power < power_input){ # Iterate while the current predictive power is lower than desired power
+  K_total_temp <- K_total_temp + 1
+  omega_temp <- calCovbetas(vars, rho01_mat, rho2_mat, clus_var,
+                            sigmaz.square, m_input, Q)
+  tau_temp <- K_total_temp*t(betas) %*% solve(omega_temp) %*% betas
+  Fscore_temp <- qf(1 - alpha_input, df1 = Q, df2 = K_total_temp - 2*Q, ncp = 0,
+               lower.tail = TRUE, log.p = FALSE)
+  pred.power <- round(1 - pf(Fscore_temp, df1 = Q, df2 = K_total_temp - 2*Q, tau_temp,
+                             lower.tail = TRUE, log.p = FALSE), 4)
+}
+method4_K_F <- K_total_temp/2
 
 # m for Method 4
 # Temporary equation to use multiroot() on to solve for m
@@ -244,14 +294,14 @@ find.para.m <- function(m, para){
     (2*para[4]*para[5]*(VIF1*VIF2 - VIF12^2)) - para[10]
 }
 
-# Find K based
-find.para.m <- multiroot(find.para.m, start = 3,
-                         para = c(beta1_input, beta2_input, K_input,
-                                  varY1_input, varY2_input,
-                                  rho01_input, rho02_input,
-                                  rho1_input, rho2_input, ncp2),
-                         positive = TRUE)
-method4_m <- find.para.m$root # Cluster size required
+# Finding value
+find.para.m_F <- multiroot(find.para.m, start = 3,
+                           para = c(beta1_input, beta2_input, K_input,
+                                    varY1_input, varY2_input,
+                                    rho01_input, rho02_input,
+                                    rho1_input, rho2_input, ncpF),
+                           positive = TRUE)
+method4_m_F <- find.para.m_F$root # Cluster size required
 
 # Method 5: Conjunctive IU Test ------------------------------------------------
 
@@ -354,6 +404,8 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     "2. Combined Outcomes",
                                     "3. Single 1-df Combined Test",
                                     "4. Disjunctive 2-df Test",
+                                    "a. Chi-2 Distribution",
+                                    "b. F Distribution",
                                     "5. Conjunctive IU Test"),
                        `Power`  = c(NA,
                                     min(method1_power_bonf),
@@ -361,7 +413,9 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     min(method1_power_dap),
                                     method2_power,
                                     method3_power,
-                                    method4_power,
+                                    NA,
+                                    method4_power_chi2,
+                                    method4_power_F,
                                     method5_power),
                        `K`      = c(NA,
                                     max(method1_K_bonf),
@@ -369,7 +423,9 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     max(method1_K_dap),
                                     method2_K,
                                     method3_K,
-                                    method4_K,
+                                    NA,
+                                    method4_K_chi2,
+                                    method4_K_F,
                                     method5_K),
                        `m`      = c(NA,
                                     max(method1_m_bonf),
@@ -377,7 +433,9 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     max(method1_m_dap),
                                     method2_m,
                                     method3_m,
-                                    method4_m,
+                                    NA,
+                                    method4_m_chi2,
+                                    method4_m_F,
                                     method5_m)
 
 )
