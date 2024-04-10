@@ -303,7 +303,7 @@ find.para.m_F <- multiroot(find.para.m, start = 3,
                            positive = TRUE)
 method4_m_F <- find.para.m_F$root # Cluster size required
 
-# Method 5: Conjunctive IU Test ------------------------------------------------
+# Method 5: Conjunctive IU Test (T-Distribution) -------------------------------
 
 # Power for Method 5
 method5_power <- calPower_ttestIU(betas = c(beta1_input, beta2_input),
@@ -319,8 +319,7 @@ method5_power <- calPower_ttestIU(betas = c(beta1_input, beta2_input),
                                                 2, 2),
                                   r = 0.5,
                                   N = 2*K_input,
-                                  alpha = alpha_input
-                                  )
+                                  alpha = alpha_input)
 
 # K for Method 5
 method5_K <- calSampleSize_ttestIU(betas = c(beta1_input, beta2_input),
@@ -336,9 +335,10 @@ method5_K <- calSampleSize_ttestIU(betas = c(beta1_input, beta2_input),
                                                  2, 2),
                                    r = 0.5,
                                    K = 2,
-                                   alpha = alpha_input
-                                   )/2 # Divide by 2 because function returns
-                                       # total number of clusters, which is 2K
+                                   alpha = alpha_input)/2 # Divide by 2 because
+                                                          # function returns
+                                                          # total number of clusters,
+                                                          # which is 2K
 
 # m for Method 5
 # Write custom function for finding m, uses same logic as K
@@ -351,7 +351,8 @@ calculateClusterSize_IUTest <- function(betas,
                                         r,
                                         N,
                                         alpha,
-                                        power){
+                                        power,
+                                        dist = "T"){
 
   # Initialize m and predictive power
   m <- 0
@@ -367,8 +368,8 @@ calculateClusterSize_IUTest <- function(betas,
                                    r = r, # Proportion of clusters in intervention arm
                                    m = m, # Mean cluster size
                                    K = K, # Number of endpoints
-                                   alpha = alpha # Type I error rate upper bound
-    )
+                                   alpha = alpha, # Type I error rate upper bound
+                                   dist = dist)
     if(m > 10000){
       m <- Inf
       break
@@ -391,8 +392,60 @@ method5_m <- calculateClusterSize_IUTest(betas = c(beta1_input, beta2_input),
                                                        2, 2),
                                          r = 0.5,
                                          K = 2,
-                                         alpha = alpha_input
-)
+                                         alpha = alpha_input)
+
+# Method 5: Conjunctive IU Test (MVN-Distribution) -----------------------------
+
+# Power for Method 5
+method5_power_MVN <- calPower_ttestIU(betas = c(beta1_input, beta2_input),
+                                      K = 2, # In this function, K = # of outcomes
+                                      m = m_input,
+                                      deltas = c(0, 0),
+                                      vars = c(varY1_input, varY2_input),
+                                      rho01 = matrix(c(rho01_input, rho1_input,
+                                                       rho1_input, rho02_input),
+                                                     2, 2),
+                                      rho2 = matrix(c(1, rho2_input,
+                                                      rho2_input, 1),
+                                                    2, 2),
+                                      r = 0.5,
+                                      N = 2*K_input,
+                                      alpha = alpha_input,
+                                      dist = "MVN")
+
+# K for Method 5
+method5_K_MVN <- calSampleSize_ttestIU(betas = c(beta1_input, beta2_input),
+                                       m = m_input,
+                                       power = power_input,
+                                       deltas = c(0, 0),
+                                       vars = c(varY1_input, varY2_input),
+                                       rho01 = matrix(c(rho01_input, rho1_input,
+                                                        rho1_input, rho02_input),
+                                                      2, 2),
+                                       rho2 = matrix(c(1, rho2_input,
+                                                       rho2_input, 1),
+                                                     2, 2),
+                                       r = 0.5,
+                                       K = 2,
+                                       alpha = alpha_input,
+                                       dist = "MVN")/2 # Divide by 2 to get
+                                                       # clusters per treatment group
+
+method5_m_MVN <- calculateClusterSize_IUTest(betas = c(beta1_input, beta2_input),
+                                             N = 2*K_input,
+                                             power = power_input,
+                                             deltas = c(0, 0),
+                                             vars = c(varY1_input, varY2_input),
+                                             rho01 = matrix(c(rho01_input, rho1_input,
+                                                              rho1_input, rho02_input),
+                                                            2, 2),
+                                             rho2 = matrix(c(1, rho2_input,
+                                                             rho2_input, 1),
+                                                           2, 2),
+                                             r = 0.5,
+                                             K = 2,
+                                             alpha = alpha_input,
+                                             dist = "MVN")
 
 # Summary of Results -----------------------------------------------------------
 
@@ -406,7 +459,9 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     "4. Disjunctive 2-df Test",
                                     "a. Chi-2 Distribution",
                                     "b. F Distribution",
-                                    "5. Conjunctive IU Test"),
+                                    "5. Conjunctive IU Test",
+                                    "a. Multivariate Normal Distribution",
+                                    "b. T Distribution"),
                        `Power`  = c(NA,
                                     min(method1_power_bonf),
                                     min(method1_power_sidak),
@@ -416,6 +471,8 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     NA,
                                     method4_power_chi2,
                                     method4_power_F,
+                                    NA,
+                                    method5_power_MVN,
                                     method5_power),
                        `K`      = c(NA,
                                     max(method1_K_bonf),
@@ -426,6 +483,8 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     NA,
                                     method4_K_chi2,
                                     method4_K_F,
+                                    NA,
+                                    method5_K_MVN,
                                     method5_K),
                        `m`      = c(NA,
                                     max(method1_m_bonf),
@@ -436,9 +495,9 @@ summaryTable <- tibble(`Method` = c("1. P-Value Adjustments",
                                     NA,
                                     method4_m_chi2,
                                     method4_m_F,
-                                    method5_m)
-
-)
+                                    NA,
+                                    method5_m_MVN,
+                                    method5_m))
 
 # Table displaying p-value adjustment method comparisons between Y1 and Y2
 pValueTable <- tibble(`Method`    = c("Bonferroni",
