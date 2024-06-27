@@ -5,19 +5,15 @@
 # Clear environment
 rm(list = ls(all.names = TRUE))
 
-# Sets the repository to be the CodeAppendix folder; assumes current
-# directory is the main GitHub repository on your computer
-setwd("./CodeAppendix")
-
 # Source file that automatically checks and downloads required packages
-source("./RequiredPackages.R")
+source("./CodeAppendix/RequiredPackages.R")
 
 # Source code for Method 5: Conjunctive IU test from
 #     https://github.com/siyunyang/coprimary_CRT
-source("./powerSampleCal_varCluster_ttest.R")
+source("./CodeAppendix/powerSampleCal_varCluster_ttest.R")
 
 # Source helper functions
-source("./HelperFunctions.R")
+source("./CodeAppendix/HelperFunctions.R")
 
 # Input Parameters -------------------------------------------------------------
 # Creating objects for the input design parameters
